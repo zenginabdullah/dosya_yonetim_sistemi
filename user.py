@@ -44,3 +44,11 @@ class User:
         conn.commit()
         conn.close()
         messagebox.showinfo("Parolanız başarıyla değiştirildi.")
+        
+    def get_user_id(username):
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
+        user_id = cursor.fetchone()[0]
+        
+        return user_id
