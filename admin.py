@@ -59,7 +59,14 @@ class Admin:
     def set_storage_limit(user_id, new_limit):
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
-        cursor.execute("UPDATE users SET storage_limit = ? WHERE id = ?", (new_limit, user_id))
-        conn.commit()
-        conn.close()
-        messagebox.showinfo("Başarılı", "Depolama limiti başarıyla güncellendi.")
+        cursor.execute("SELECT id FROM users WHERE id = ?", (user_id,))
+        user = cursor.fetchone()
+
+        if user:
+            cursor.execute("UPDATE users SET storage_limit = ? WHERE id = ?", (new_limit, user_id))
+            conn.commit()
+        else:
+            messagebox.showerror("Hata", f"Kullanıcı ID {user_id} bulunamadı.")
+            return
+
+Admin.set_storage_limit(2, 2048)
