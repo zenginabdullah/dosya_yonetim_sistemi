@@ -7,6 +7,8 @@ from user_dashboard import *
 from admin_dashboard import *
 from tkinter import Label, Frame
 from PIL import Image, ImageTk
+from logger import log_action
+import user
 
 db_path = "app.db"
 
@@ -78,8 +80,11 @@ def register_user(username, password, register_window):
         cursor = conn.cursor()
         cursor.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)", (username, hashed_password, "user"))
         conn.commit()
-        conn.close()
+        
+        user_id = user.User.get_user_id(username)
         messagebox.showinfo("Başarılı", "Kayıt başarıyla tamamlandı!")
+        log_action(user_id, "Kullanıcı Kaydı", f"{username} adlı kullanıcı kayıt oldu.")
+        
         register_window.destroy()
     except sqlite3.IntegrityError:
         messagebox.showerror("Hata", "Bu kullanıcı adı zaten alınmış.")
@@ -97,6 +102,9 @@ def handle_login():
     success, role = login(db_path, username, password)
     if success:
         messagebox.showinfo("Giriş Başarılı", f"Hoş geldiniz, {username}!")
+        user_id = user.User.get_user_id(username)
+        log_action(user_id, "Kullanıcı Girişi", f"{username} adlı kullanıcı giriş yaptı.")
+        
         root.withdraw()
         if role == "user":
             open_user_dashboard(username)

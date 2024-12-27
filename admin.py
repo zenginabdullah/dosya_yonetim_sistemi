@@ -68,5 +68,3 @@ class Admin:
         else:
             messagebox.showerror("Hata", f"Kullanıcı ID {user_id} bulunamadı.")
             return
-
-Admin.set_storage_limit(2, 2048)
