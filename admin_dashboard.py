@@ -3,13 +3,14 @@ from tkinter import messagebox, ttk
 import sqlite3
 import admin as a
 import user
+import os
 
 def open_admin_dashboard(username):
     admin_dashboard = tk.Toplevel()
     admin_dashboard.title(f"Admin Paneli: {username}")
-    admin_dashboard.geometry("500x350")
+    admin_dashboard.geometry("500x450")
     admin_dashboard.configure(bg="#f2f2f2")
-    center_window(admin_dashboard, 500, 350)
+    center_window(admin_dashboard, 500, 450)
 
     ttk.Label(admin_dashboard, text="Admin Paneli", font=("Arial", 18, "bold"), background="#f2f2f2").pack(pady=20)
 
@@ -231,7 +232,84 @@ def open_admin_dashboard(username):
 
     view_logs_button = ttk.Button(admin_dashboard, text="Logları Görüntüle", command=view_logs_dashboard)
     view_logs_button.pack(pady=10)
-    
+
+    def view_user_files_dashboard():
+        # Yeni bir pencere oluştur
+        files_window = tk.Toplevel()
+        files_window.title("Kullanıcı Dosyalarını Görüntüle")
+        files_window.geometry("500x500")
+        files_window.configure(bg="#f2f2f2")
+        center_window(files_window, 500, 500)
+
+        conn = sqlite3.connect("app.db")
+        cursor = conn.cursor()
+
+        # Kullanıcı ID'lerini ve adlarını al
+        cursor.execute("SELECT id, username FROM users")
+        users = cursor.fetchall()
+        conn.close()
+
+        if not users:
+            messagebox.showinfo("Bilgi", "Hiçbir kullanıcı bulunamadı.")
+            files_window.destroy()
+            return
+
+        # Kullanıcı seçimi için ComboBox
+        ttk.Label(files_window, text="Kullanıcı Seçiniz:", background="#f2f2f2").pack(pady=10)
+        user_combobox = ttk.Combobox(files_window, state="readonly", width=40)
+        user_combobox['values'] = [f"{user[1]} (ID: {user[0]})" for user in users]
+        user_combobox.pack(pady=10)
+        user_combobox.set("Kullanıcı Seçiniz")
+
+        # Dosyaları listelemek için bir liste
+        file_listbox = tk.Listbox(files_window, width=60, height=15)
+        file_listbox.pack(pady=10)
+
+        def load_user_files():
+            # Kullanıcı seçimini al
+            selected_user = user_combobox.get()
+            if not selected_user or selected_user == "Kullanıcı Seçiniz":
+                messagebox.showerror("Hata", "Lütfen bir kullanıcı seçiniz.")
+                return
+
+            user_id = int(selected_user.split("(ID: ")[1].strip(")"))
+            
+            conn = sqlite3.connect("app.db")
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, file_name, backup_path, created_at FROM files WHERE user_id = ?", (user_id,))
+            files = cursor.fetchall()
+            conn.close()
+
+            # Listeyi temizle ve yeni verileri ekle
+            file_listbox.delete(0, tk.END)
+            if files:
+                for file in files:
+                    file_listbox.insert(tk.END, f"Dosya: {file[1]} | Yedekleme Yolu: {file[2]} | Tarih: {file[3]}")
+            else:
+                messagebox.showinfo("Bilgi", "Bu kullanıcıya ait hiçbir dosya bulunamadı.")
+
+        def open_backup_path():
+            # Seçili dosyanın yedekleme yolunu al
+            selected_file = file_listbox.get(tk.ACTIVE)
+            if not selected_file:
+                messagebox.showerror("Hata", "Lütfen bir dosya seçiniz.")
+                return
+
+            backup_path = selected_file.split("| Yedekleme Yolu: ")[1].split(" |")[0]
+            try:
+                os.startfile(backup_path)  # Windows için yedekleme yolunu açar
+            except Exception as e:
+                messagebox.showerror("Hata", f"Yedekleme yolu açılamadı. Hata: {e}")
+
+        # Kullanıcı dosyalarını listeleme butonu
+        ttk.Button(files_window, text="Dosyaları Yükle", command=load_user_files).pack(pady=10)
+        
+        # Seçili dosyanın yedekleme yolunu açma butonu
+        ttk.Button(files_window, text="Yedekleme Yolunu Aç", command=open_backup_path).pack(pady=10)
+        
+    view_files_button = ttk.Button(admin_dashboard, text="Kullanıcı Dosyalarını Görüntüle", command=view_user_files_dashboard)
+    view_files_button.pack(pady=10)
+
     admin_dashboard.mainloop()
 
 def center_window(window, width, height):
