@@ -4,7 +4,7 @@ from tkinter import ttk
 import sqlite3
 from user import User
 from teams import *
-from upload_file import *
+from upload_file import download_file, upload_file, get_user_teams, get_team_files
 from tkinter import font
 
 def center_window(window, width, height):
@@ -135,7 +135,7 @@ def open_user_dashboard(username):
         def on_file_select(event):
             item = file_list.selection()[0]
             file_path = file_list.item(item, "tags")[0]
-            download_file(file_path)
+            download_file(file_path, username)
 
         file_list.bind("<Double-1>", on_file_select)
 

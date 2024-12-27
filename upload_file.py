@@ -5,9 +5,12 @@ import shutil
 from user_dashboard import *
 from tkinter import ttk, Label, Toplevel
 from PIL import ImageTk, Image
+from logger import log_action
+import user
+
+global logged_user
 
 def upload_file(team_combobox, username):
-    """File upload functionality with a modernized UI."""
     selected_team_name = team_combobox.get()
     selected_team_id = None
     
@@ -21,7 +24,7 @@ def upload_file(team_combobox, username):
         return
     
     file_path = filedialog.askopenfilename(title="Dosya Seç", filetypes=[("All Files", "*.*")])
-    
+    user_id = user.User.get_user_id(username)
     if file_path:
         file_name = file_path.split("/")[-1]
 
@@ -33,17 +36,18 @@ def upload_file(team_combobox, username):
             cursor.execute(''' 
                 INSERT INTO files (user_id, file_name, backup_path, team_id) 
                 VALUES (?, ?, ?, ?) 
-            ''', (1, file_name, file_path, selected_team_id))
+            ''', (user_id, file_name, file_path, selected_team_id))
 
             conn.commit()
             conn.close()
             
             messagebox.showinfo("Başarı", f"{file_name} dosyası başarıyla yüklendi.")
+            log_action(user_id, "Dosya Yükleme", f"{username} tarafında {selected_team_name} takımına {file_name} dosyası yüklendi.")
         except sqlite3.Error as e:
             messagebox.showerror("Veritabanı Hatası", f"Veritabanı hatası: {e}")
 
 def share_file_with_team(file_id, team_id):
-    """Share uploaded file with team members."""
+
     try:
         conn = sqlite3.connect("app.db")
         cursor = conn.cursor()
@@ -63,7 +67,7 @@ def share_file_with_team(file_id, team_id):
         messagebox.showerror("Veritabanı Hatası", f"Veritabanı hatası: {e}")
 
 def view_shared_files(team_id):
-    """View files shared within the team."""
+
     try:
         conn = sqlite3.connect("app.db")
         cursor = conn.cursor()
@@ -85,7 +89,7 @@ def view_shared_files(team_id):
         messagebox.showerror("Veritabanı Hatası", f"Veritabanı hatası: {e}")
 
 def get_user_teams(username):
-    """Retrieve all teams the user is part of."""
+
     conn = sqlite3.connect("app.db")
     cursor = conn.cursor()
 
@@ -103,7 +107,7 @@ def get_user_teams(username):
     return teams
 
 def get_team_files(team_id):
-    """Retrieve all files uploaded by the team."""
+
     conn = sqlite3.connect("app.db")
     cursor = conn.cursor()
 
@@ -143,37 +147,41 @@ def ask_custom_action():
 
     return result["choice"]
 
-def download_file(file_path):
+def download_file(file_path, username):
+
     try:
         action = ask_custom_action()
         
         if action == "edit":
-            open_edit_file_content_panel(file_path)
+            open_edit_file_content_panel(file_path, username)
         elif action == "download":
             save_path = filedialog.asksaveasfilename(initialfile=file_path.split("/")[-1])
             if save_path:
                 shutil.copy(file_path, save_path)
                 messagebox.showinfo("Başarı", "Dosya başarıyla indirildi.")
+                
+                user_id = user.User.get_user_id(username)
+                log_action(user_id, "Dosya İndirme", f"{username} kullanıcısı {file_path} dosyasını indirdi.")
         else:
             messagebox.showinfo("İptal", "Hiçbir işlem yapılmadı.")
     except Exception as e:
         messagebox.showerror("Hata", f"Dosya indirilirken hata oluştu: {e}")
 
 
-def open_edit_file_content_panel(file_path):
-    """Open a panel to edit the content of a file."""
+def open_edit_file_content_panel(file_path, username):
+
     try:
         with open(file_path, "r", encoding="utf-8") as file:
             file_content = file.read()
     except Exception as e:
         messagebox.showerror("Hata", f"Dosya açılamadı: {e}")
         return
-
+    
     edit_window = tk.Toplevel()
     edit_window.title("Dosya İçeriğini Düzenle")
     edit_window.geometry("600x550")
     edit_window.configure(bg="#f5f5f5")
-
+    
     text_frame = tk.Frame(edit_window)
     text_frame.pack(expand=True, fill="both", padx=10, pady=10)
 
@@ -185,78 +193,17 @@ def open_edit_file_content_panel(file_path):
     button_frame.pack(fill="x", padx=10, pady=10)
 
     def save_file():
-        """Save the edited content back to the file."""
+
         new_content = text_area.get("1.0", "end-1c")
         try:
             with open(file_path, "w", encoding="utf-8") as file:
                 file.write(new_content)
             messagebox.showinfo("Başarı", "Dosya içeriği başarıyla kaydedildi.")
+            
+            user_id = user.User.get_user_id(username)
+            log_action(user_id, "Dosya Düzenleme", f"{username} kullanıcısı {file_path} dosyasını düzenledi.")
         except Exception as e:
             messagebox.showerror("Hata", f"Dosya kaydedilemedi: {e}")
 
     save_button = tk.Button(button_frame, text="Kaydet", command=save_file, bg="#4CAF50", fg="white", font=("Arial", 12))
     save_button.pack(pady=10, side="bottom")
-
-            
-def open_file_management_panel(username):
-    """Open the file management panel with a modernized UI."""
-    file_window = tk.Toplevel()
-    file_window.title(f"Dosya Yönetim Paneli: {username}")
-    file_window.geometry("600x400")
-    file_window.configure(bg="#f5f5f5")
-    file_window.resizable(False, False)
-
-    style = ttk.Style(file_window)
-    style.configure("TButton", background="#4CAF50", foreground="white", font=("Arial", 10), padding=10)
-    style.configure("TLabel", font=("Arial", 12), background="#f5f5f5")
-
-
-    tk.Label(file_window, text=f"Hoş geldiniz, {username}!", font=("Arial", 16, "bold"), bg="#f5f5f5").pack(pady=10)
-
-    teams = get_user_teams(username)
-    team_names = [team[1] for team in teams]
-    team_ids = {team[1]: team[0] for team in teams}
-
-    selected_team = tk.StringVar()
-    team_combobox = ttk.Combobox(file_window, textvariable=selected_team, values=team_names, state="readonly", width=30)
-    team_combobox.set("Takım Seçiniz")
-    team_combobox.pack(pady=10)
-
-    file_list = ttk.Treeview(file_window, columns=("File Name", "Actions"), show="headings", height=10)
-    file_list.heading("File Name", text="Dosya Adı")
-    file_list.heading("Actions", text="İndir")
-    file_list.column("File Name", width=300)
-    file_list.column("Actions", width=100)
-    file_list.pack(pady=20)
-    #file_list.bind("<Double-1>", on_file_select)
-
-    def refresh_file_list():
-        """Refresh the file list for the selected team."""
-        file_list.delete(*file_list.get_children())
-        selected_team_name = team_combobox.get()
-        if selected_team_name != "Takım Seçiniz":
-            team_id = team_ids[selected_team_name]
-            files = get_team_files(team_id)
-            for file_id, file_name, file_path in files:
-                file_list.insert("", "end", values=(file_name, "İndir"), tags=(file_path,))
-
-    """
-    def on_file_select(event):
-        
-        item = file_list.selection()[0]
-        file_path = file_list.item(item, "tags")[0]  # İlk tag'i al
-        
-        action = messagebox.askquestion("Seçim", "Dosya içeriğini düzenlemek mi istiyorsunuz?")
-
-        if action == "yes":
-            open_edit_file_content_panel(file_path)
-        else:
-            download_file(file_path)
-    """
-
-    tk.Button(file_window, text="Dosya Yükle", command=lambda: upload_file(team_combobox, username)).pack(pady=10)
-    tk.Button(file_window, text="Listeyi Yenile", command=refresh_file_list).pack(pady=5)
-
-    team_combobox.bind("<<ComboboxSelected>>", lambda e: refresh_file_list())
-
-    file_window.mainloop()

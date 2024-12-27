@@ -3,6 +3,8 @@ from tkinter import ttk, messagebox
 import sqlite3
 from tkinter import Label
 from PIL import Image, ImageTk
+from logger import log_action
+import user
 
 def center_window(window, width, height):
     window.geometry(f'{width}x{height}+{(window.winfo_screenwidth() // 2) - (width // 2)}+{(window.winfo_screenheight() // 2) - (height // 2)}')
@@ -40,7 +42,9 @@ def open_team_management(username, dashboard):
                 cursor = conn.cursor()
                 cursor.execute("INSERT INTO teams (team_name, creator) VALUES (?, ?)", (team_name, username))
                 conn.commit()
+                user_id = user.User.get_user_id(username)
                 messagebox.showinfo("Başarı", f"{team_name} takımı oluşturuldu.")
+                log_action(user_id, "Takım Oluşturma", f"{username} kullanıcısı tarafından {team_name} takımı oluşturuldu.")
 
                 cursor.execute("SELECT id FROM teams WHERE team_name = ?", (team_name,))
                 team_result = cursor.fetchone()
@@ -100,6 +104,7 @@ def open_team_management(username, dashboard):
                     conn.commit()
                     conn.close()
                     messagebox.showinfo("Başarı", f"{selected_member} takıma eklendi.")
+                    log_action(user_id, "Takım Üyesi Ekleme", f"{selected_member} adlı kullanıcı {team_name} takımına eklendi.")
                 else:
                     messagebox.showwarning("Hata", f"{team_name} adlı takım bulunamadı.")
                     conn.close()
