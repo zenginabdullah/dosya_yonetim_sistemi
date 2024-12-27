@@ -7,6 +7,7 @@ from tkinter import ttk, Label, Toplevel
 from PIL import ImageTk, Image
 from logger import log_action
 import user
+from file_sync import *
 
 global logged_user
 
@@ -42,6 +43,7 @@ def upload_file(team_combobox, username):
             conn.close()
             
             messagebox.showinfo("Başarı", f"{file_name} dosyası başarıyla yüklendi.")
+            auto_backup_and_sync(file_path)
             log_action(user_id, "Dosya Yükleme", f"{username} tarafında {selected_team_name} takımına {file_name} dosyası yüklendi.")
         except sqlite3.Error as e:
             messagebox.showerror("Veritabanı Hatası", f"Veritabanı hatası: {e}")
@@ -199,7 +201,7 @@ def open_edit_file_content_panel(file_path, username):
             with open(file_path, "w", encoding="utf-8") as file:
                 file.write(new_content)
             messagebox.showinfo("Başarı", "Dosya içeriği başarıyla kaydedildi.")
-            
+            auto_backup_and_sync(file_path)
             user_id = user.User.get_user_id(username)
             log_action(user_id, "Dosya Düzenleme", f"{username} kullanıcısı {file_path} dosyasını düzenledi.")
         except Exception as e:
