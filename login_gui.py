@@ -5,7 +5,7 @@ import bcrypt
 from tkinter import ttk
 from user_dashboard import *
 from admin_dashboard import *
-from tkinter import Label, Frame
+from tkinter import Label
 from PIL import Image, ImageTk
 from logger import log_action
 import user
@@ -16,23 +16,62 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from file_sync import BackupAndSyncHandler
 import time
+from tkinter.ttk import Progressbar
 
 
 def start_file_sync():
     source_dir = "source"  # İzlenecek kaynak dizin
-    event_handler = BackupAndSyncHandler()
-    observer = Observer()
-    observer.schedule(event_handler, source_dir, recursive=True)
-    observer.start()
-    print("Yedekleme ve senkronizasyon başlatıldı...")
+    dest_dir = "backup"  # Yedekleme dizini
+    os.makedirs(dest_dir, exist_ok=True)
 
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
+    # Toplam dosya sayısını hesapla
+    total_files = len([f for f in os.listdir(source_dir) if os.path.isfile(os.path.join(source_dir, f))])
+    if total_files == 0:
+        print("Yedeklenecek dosya bulunamadı.")
+        return
+
+    # GUI penceresi oluştur
+    sync_window = tk.Tk()
+    sync_window.title("Yedekleme ve Senkronizasyon")
+    sync_window.geometry("300x150")
+    sync_window.configure(bg="#f2f2f2")
+
+    tk.Label(sync_window, text="Yedekleme işlemi devam ediyor...", bg="#f2f2f2").pack(pady=10)
+    progress = Progressbar(sync_window, orient=tk.HORIZONTAL, length=200, mode='determinate')
+    progress.pack(pady=20)
+
+    def on_sync_complete():
+        tk.Label(sync_window, text="Yedekleme tamamlandı!", bg="#f2f2f2", fg="green").pack(pady=10)
+        sync_window.after(2000, sync_window.destroy)  # Pencereyi 2 saniye sonra kapatır
+
+    # BackupAndSyncHandler'ı başlat
+    event_handler = BackupAndSyncHandler(progress, total_files, on_sync_complete)
+    observer = Observer()
+    observer.schedule(event_handler, source_dir, recursive=False)
+
+    def start_observer():
+        observer.start()
+        print("Yedekleme ve senkronizasyon başlatıldı...")
+
+        for file in os.listdir(source_dir):
+            file_path = os.path.join(source_dir, file)
+            if os.path.isfile(file_path):
+                event_handler.backup_file(file_path)
+
         observer.stop()
-        print("Yedekleme ve senkronizasyon durduruldu.")
-    observer.join()
+        observer.join()
+
+    # İşlem arka planda çalıştırılır
+    threading.Thread(target=start_observer, daemon=True).start()
+
+    def stop_observer():
+        observer.stop()
+        observer.join()
+        sync_window.destroy()
+
+    sync_window.protocol("WM_DELETE_WINDOW", stop_observer) # Pencere kapatıldığında gözlemciyi durdur
+    
+    sync_window.mainloop()
 
 # Yedekleme thread'ini başlat
 sync_thread = threading.Thread(target=start_file_sync, daemon=True)

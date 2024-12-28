@@ -7,15 +7,16 @@ from teams import *
 from upload_file import download_file, upload_file, get_user_teams, get_team_files
 from tkinter import font
 
+
 def center_window(window, width, height):
     window.geometry(f'{width}x{height}+{(window.winfo_screenwidth() // 2) - (width // 2)}+{(window.winfo_screenheight() // 2) - (height // 2)}')
 
 def open_user_dashboard(username):
     dashboard = tk.Toplevel()
     dashboard.title(f"Kullanıcı Paneli: {username}")
-    dashboard.geometry("400x400")
+    dashboard.geometry("400x450")
     dashboard.resizable(False, False)
-    center_window(dashboard, 400, 400)
+    center_window(dashboard, 400, 450)
     
     # Modern font
     title_font = font.Font(family="Arial", size=18, weight="bold")
@@ -92,12 +93,13 @@ def open_user_dashboard(username):
         
         ttk.Button(settings_button_frame, text="Kullanıcı Adı Değiştir", command=change_username, width=20).pack(pady=10)
         ttk.Button(settings_button_frame, text="Parola Değiştirme Talebi Gönder", command=lambda: request_password_change(username)).pack(pady=10)
-
+        ttk.Button(settings_window, text="Çıkış", command=settings_window.destroy).pack(pady=10)
+        
     def open_files(username):
         file_window = tk.Toplevel()
         file_window.title(f"Dosya Yönetim Paneli: {username}")
-        file_window.geometry("600x550")
-        center_window(file_window, 600, 550)
+        file_window.geometry("600x600")
+        center_window(file_window, 600, 600)
 
         file_resim = Image.open("photos/file.png")
         file_resim = file_resim.resize((100, 100))
@@ -141,15 +143,100 @@ def open_user_dashboard(username):
 
         ttk.Button(file_window, text="Dosya Yükle", command=lambda: upload_file(team_combobox, username), width=20).pack(pady=10)
         ttk.Button(file_window, text="Listeyi Yenile", command=refresh_file_list, width=20).pack(pady=5)
+        ttk.Button(file_window, text="Çıkış", command=file_window.destroy).pack(pady=10)
 
         team_combobox.bind("<<ComboboxSelected>>", lambda e: refresh_file_list())
-    
         
-    # Ayarlar butonunu, dosya sistemi butonunu ve takım ayarları butonunu düzenli şekilde ekleyelim
-    
+    def show_notifications(username):
+        notification_window = tk.Toplevel()
+        notification_window.title(f"Bildirim Paneli: {username}")
+        notification_window.geometry("600x550")
+        center_window(notification_window, 600, 550)
+
+        notification_resim = Image.open("photos/notification.png")
+        notification_resim = notification_resim.resize((100, 100))
+        notification_resim = ImageTk.PhotoImage(notification_resim)
+        nresim = Label(notification_window,image=notification_resim)
+        nresim.place(x=10,y=10)
+        nresim.image = notification_resim
+        nresim.pack(pady=10)
+        
+        notification_list = ttk.Treeview(notification_window, columns=("Notification", "Created At"), show="headings", height=15)
+        notification_list.heading("Notification", text="Bildirim")
+        notification_list.heading("Created At", text="Tarih")
+        notification_list.column("Notification", width=300)
+        notification_list.column("Created At", width=150)
+        notification_list.pack(pady=10)
+        
+        def load_notifications(notification_list, user_id):
+            """Belirli bir kullanıcı için bildirimleri Treeview'e yükler."""
+            connection = sqlite3.connect("app.db")
+            cursor = connection.cursor()
+            try:
+                cursor.execute('''
+                    SELECT id, message, created_at
+                    FROM notifications
+                    WHERE user_id = ?
+                    ORDER BY created_at DESC
+                ''', (user_id,))
+                notifications = cursor.fetchall()
+
+                # Mevcut listeyi temizle
+                for row in notification_list.get_children():
+                    notification_list.delete(row)
+
+                # Bildirimleri Treeview'e ekle
+                for notification_id, message, created_at in notifications:
+                    # Tarihi okunabilir formata dönüştür
+                    readable_date = created_at  # Doğrudan kullanabiliriz çünkü datetime formatında
+                    # Treeview'e eklerken iid olarak notification_id kullanıyoruz
+                    notification_list.insert("", "end", iid=str(notification_id), values=(message, readable_date))
+
+            except Exception as e:
+                print(f"Bildirimleri yüklerken hata oluştu: {e}")
+            finally:
+                connection.close()
+
+        def delete_notification(notification_list, user_id):
+            """Seçilen bildirimi siler."""
+            selected_item = notification_list.selection()
+            if not selected_item:
+                messagebox.showwarning("Uyarı", "Silmek için bir bildirim seçin!")
+                return
+
+            notification_id = selected_item[0]  # Seçilen bildirim ID'si (str olarak alınır)
+            confirm = messagebox.askyesno("Onay", "Bu bildirimi silmek istiyor musunuz?")
+            if confirm:
+                connection = sqlite3.connect("app.db")
+                cursor = connection.cursor()
+                try:
+                    # Bildirimi veritabanından sil
+                    cursor.execute('DELETE FROM notifications WHERE id = ? AND user_id = ?', (notification_id, user_id))
+                    connection.commit()  # Değişiklikleri kaydet
+                    print(f"Bildirim {notification_id} silindi.")
+                    
+                    # Treeview'den de kaldır
+                    notification_list.delete(notification_id)
+                    messagebox.showinfo("Başarılı", "Bildirim silindi.")
+                except Exception as e:
+                    print(f"Bildirim silinirken hata oluştu: {e}")
+                    messagebox.showerror("Hata", "Bildirim silinirken bir hata oluştu.")
+                finally:
+                    connection.close()
+
+        # Treeview çift tıklama event'i
+        def on_notification_double_click(event, notification_list, user_id):
+            """Treeview çift tıklama olayını yönetir."""
+            delete_notification(notification_list, user_id)
+        
+        user_id = User.get_user_id(username)
+        notification_list.bind("<Double-1>", lambda event: on_notification_double_click(event, notification_list, user_id))
+        load_notifications(notification_list, user_id)
+        
     ttk.Button(button_frame, text="Ayarlar", command=open_settings, width=20).pack(pady=10)
     ttk.Button(button_frame, text="Dosya Sistemi", command=lambda: open_files(username), width=20).pack(pady=10)
     ttk.Button(button_frame, text="Takım Ayarları", command=lambda: open_team_management(username, dashboard), width=20).pack(pady=10)
+    ttk.Button(button_frame, text="Bildirimleri Görüntüle", command=lambda: show_notifications(username), width=20).pack(pady=10)
     ttk.Button(button_frame, text="Çıkış", command=dashboard.quit, width=20).pack(pady=10)
     
     dashboard.mainloop()
