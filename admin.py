@@ -116,3 +116,20 @@ class Admin:
             messagebox.showinfo("Log Dosyaları", f"Tüm loglar 'logs.txt' dosyasına başarıyla kaydedildi.")
         else:
             messagebox.showinfo("Log Dosyaları", "Hiçbir işlem kaydı bulunamadı.")
+    
+    def set_role(user_id, new_role):
+        
+        conn = sqlite3.connect("app.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT username FROM users WHERE id = ?", (user_id,))
+        user = cursor.fetchone()[0]
+        if user:
+            if new_role == "admin" or new_role == "user":
+                cursor.execute("UPDATE users SET role = ? WHERE id = ?", (new_role, user_id))
+                messagebox.showinfo("Yetkilendirme Başarılı!", f"{user} kullanıcısının yeni yetkisi : {new_role} oldu!")
+                conn.commit()
+            else:
+                messagebox.showinfo("Yanlış Yetkilendime!", "Sistemdeki kullanıcıları yalnızca 'admin' veya 'user' rolünü atayabilirsiniz.")
+            
+        else:
+            messagebox.showinfo("Kullanıcı Bulunamadı!", "Seçtiğiniz kullanıcı sistemde bulunamadı.")
