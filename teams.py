@@ -5,6 +5,7 @@ from tkinter import Label
 from PIL import Image, ImageTk
 from logger import log_action
 import user
+import datetime
 
 def center_window(window, width, height):
     window.geometry(f'{width}x{height}+{(window.winfo_screenwidth() // 2) - (width // 2)}+{(window.winfo_screenheight() // 2) - (height // 2)}')
@@ -102,9 +103,11 @@ def open_team_management(username, dashboard):
                     user_id = cursor.fetchone()[0]
                     cursor.execute("INSERT INTO team_members (team_id, user_id) VALUES (?, ?)", (team_id, user_id))
                     conn.commit()
-                    conn.close()
+
                     messagebox.showinfo("Başarı", f"{selected_member} takıma eklendi.")
                     log_action(user_id, "Takım Üyesi Ekleme", f"{selected_member} adlı kullanıcı {team_name} takımına eklendi.")
+                    cursor.execute('''INSERT INTO notifications (user_id, message)VALUES (?, ?)''', (user_id, f"{team_name} takımına eklendiniz."))
+                    conn.commit()
                 else:
                     messagebox.showwarning("Hata", f"{team_name} adlı takım bulunamadı.")
                     conn.close()
@@ -114,6 +117,6 @@ def open_team_management(username, dashboard):
         ttk.Button(members_frame, text="Üye Ekle", command=add_member_to_team).pack(pady=10)
 
     ttk.Button(frame, text="Takım Üyelerini Görüntüle ve Ekle", command=view_and_add_members).pack(pady=20)
-
+    ttk.Button(team_window, text="Çıkış", command=team_window.destroy).pack(pady=10)
     # Arka plan rengi ve yazı fontu
     team_window.configure(bg="#f0f0f0")

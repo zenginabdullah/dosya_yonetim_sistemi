@@ -3,10 +3,12 @@ import time
 import shutil
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+from tkinter import ttk
 
 BACKUP_DIR = "backup"
 SYNC_DIR = "sync"
 SOURCE_DIR = "source"
+
 
 def ensure_directories():
     """Gerekli dizinleri oluşturur."""
@@ -68,6 +70,14 @@ def auto_backup_and_sync(file_path):
     sync_file(file_path)
 
 class BackupAndSyncHandler(FileSystemEventHandler):
+    
+    def __init__(self, progress, total_files, callback):
+        super().__init__()
+        self.progress = progress
+        self.total_files = total_files
+        self.completed_files = 0
+        self.callback = callback
+        
     """Dosya değişikliklerini izleyen ve yedekleme/senkronizasyon yapan sınıf."""
     def on_modified(self, event):
         if not event.is_directory:
@@ -87,6 +97,23 @@ class BackupAndSyncHandler(FileSystemEventHandler):
             if os.path.exists(sync_path):
                 os.remove(sync_path)
                 print(f"{file_name} senkronizasyondan kaldırıldı.")
+    
+    def backup_file(self, file_path):
+        """Dosyayı yedekleme işlemi"""
+        dest_dir = "backup"
+        os.makedirs(dest_dir, exist_ok=True)
+        try:
+            shutil.copy(file_path, dest_dir)
+            self.completed_files += 1
+            self.update_progress()
+        except Exception as e:
+            print(f"Dosya yedeklenemedi: {file_path}. Hata: {e}")
+
+    def update_progress(self):
+        progress_value = (self.completed_files / self.total_files) * 100
+        self.progress['value'] = progress_value
+        if self.completed_files >= self.total_files:
+            self.callback()
 
 def move_to_source(file_path):
     """Yüklenen dosyayı source dizinine taşır."""
@@ -102,11 +129,13 @@ def move_to_source(file_path):
 def start_backup_and_sync(source_dir):
     """Verilen kaynak dizindeki dosyaları izler, yedekler ve senkronize eder."""
     ensure_directories()
+    
     event_handler = BackupAndSyncHandler()
     observer = Observer()
     observer.schedule(event_handler, source_dir, recursive=True)
     observer.start()
     print(f"Yedekleme ve senkronizasyon başladı: {source_dir}")
+    
     try:
         while True:
             time.sleep(1)
