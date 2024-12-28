@@ -4,14 +4,15 @@ import shutil
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
-# Yedekleme ve senkronizasyon için dizinler
 BACKUP_DIR = "backup"
 SYNC_DIR = "sync"
+SOURCE_DIR = "source"
 
 def ensure_directories():
     """Gerekli dizinleri oluşturur."""
     os.makedirs(BACKUP_DIR, exist_ok=True)
     os.makedirs(SYNC_DIR, exist_ok=True)
+    os.makedirs(SOURCE_DIR, exist_ok=True)
 
 def backup_file(file_path):
     """Dosyayı yedekleme dizinine kopyalar, her dosya için kendi alt klasöründe saklar."""
@@ -19,15 +20,12 @@ def backup_file(file_path):
     if not os.path.isfile(file_path):
         return
     
-    # Dosyanın adını ve klasörünü al
     file_name = os.path.basename(file_path)
     file_base_name = os.path.splitext(file_name)[0]  # Dosya adından uzantıyı ayıkla
     file_folder = os.path.join(BACKUP_DIR, file_base_name)
     
-    # Dosya için bir klasör oluştur (eğer yoksa)
     os.makedirs(file_folder, exist_ok=True)
     
-    # Zaman damgası ekleyerek dosyayı yedekle
     timestamp = time.strftime("%Y%m%d%H%M%S")
     backup_path = os.path.join(file_folder, f"{file_name}_{timestamp}")
     
@@ -46,10 +44,9 @@ def sync_file(file_path):
         source_folder = os.path.join(BACKUP_DIR, file_base_name)
         destination_path = os.path.join(SYNC_DIR, file_name)
 
-        # Yedekleme dizinindeki en son dosyayı bul
         files_in_folder = sorted(os.listdir(source_folder), reverse=True)
         if files_in_folder:
-            latest_file = files_in_folder[0]  # En son dosyayı al
+            latest_file = files_in_folder[0]
             source_path = os.path.join(source_folder, latest_file)
             
             # Senkronizasyon dizininde eski dosyayı sil
@@ -91,6 +88,17 @@ class BackupAndSyncHandler(FileSystemEventHandler):
                 os.remove(sync_path)
                 print(f"{file_name} senkronizasyondan kaldırıldı.")
 
+def move_to_source(file_path):
+    """Yüklenen dosyayı source dizinine taşır."""
+    ensure_directories()
+    if not os.path.isfile(file_path):
+        print(f"{file_path} dosyası mevcut değil!")
+        return
+
+    # Dosyanın adını al
+    file_name = os.path.basename(file_path)
+    destination_path = os.path.join(SOURCE_DIR, file_name)
+    
 def start_backup_and_sync(source_dir):
     """Verilen kaynak dizindeki dosyaları izler, yedekler ve senkronize eder."""
     ensure_directories()
@@ -108,6 +116,5 @@ def start_backup_and_sync(source_dir):
     observer.join()
 
 if __name__ == "__main__":
-    source_directory = "source"
-    os.makedirs(source_directory, exist_ok=True)
-    start_backup_and_sync(source_directory)
+    ensure_directories()  # Gerekli dizinleri oluştur
+    start_backup_and_sync(SOURCE_DIR)  # source dizinindeki dosyaları izleyerek yedekle ve senkronize et
