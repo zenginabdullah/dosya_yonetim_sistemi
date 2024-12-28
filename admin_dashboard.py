@@ -8,9 +8,9 @@ import os
 def open_admin_dashboard(username):
     admin_dashboard = tk.Toplevel()
     admin_dashboard.title(f"Admin Paneli: {username}")
-    admin_dashboard.geometry("500x450")
+    admin_dashboard.geometry("500x500")
     admin_dashboard.configure(bg="#f2f2f2")
-    center_window(admin_dashboard, 500, 450)
+    center_window(admin_dashboard, 500, 500)
 
     ttk.Label(admin_dashboard, text="Admin Paneli", font=("Arial", 18, "bold"), background="#f2f2f2").pack(pady=20)
 
@@ -310,8 +310,72 @@ def open_admin_dashboard(username):
     view_files_button = ttk.Button(admin_dashboard, text="Kullanıcı Dosyalarını Görüntüle", command=view_user_files_dashboard)
     view_files_button.pack(pady=10)
 
-    admin_dashboard.mainloop()
+    def set_role_dashboard():
+        set_role_window = tk.Toplevel()
+        set_role_window.title("Kullanıcı Yetkilerini Düzenle")
+        set_role_window.geometry("500x500")
+        set_role_window.configure(bg="#f2f2f2")
+        center_window(set_role_window, 500, 500)
 
+        conn = sqlite3.connect("app.db")
+        cursor = conn.cursor()
+
+        # Kullanıcı ID'lerini ve adlarını al
+        cursor.execute("SELECT id, username FROM users")
+        users = cursor.fetchall()
+        conn.close()
+
+        if not users:
+            messagebox.showinfo("Bilgi", "Hiçbir kullanıcı bulunamadı.")
+            set_role_window.destroy()
+            return
+
+        # Kullanıcı seçimi için ComboBox
+        ttk.Label(set_role_window, text="Kullanıcı Seçiniz:", background="#f2f2f2").pack(pady=10)
+        user_combobox = ttk.Combobox(set_role_window, state="readonly", width=40)
+        user_combobox['values'] = [f"{user[1]}" for user in users]
+        user_combobox.pack(pady=10)
+        user_combobox.set("Kullanıcı Seçiniz")
+
+        # Yetki seçimi için ComboBox
+        ttk.Label(set_role_window, text="Yetki Seçiniz:", background="#f2f2f2").pack(pady=10)
+        role_combobox = ttk.Combobox(set_role_window, state="readonly", width=40)
+        role_combobox['values'] = ['admin', 'user']
+        role_combobox.pack(pady=10)
+        role_combobox.set("Yetki Seçiniz")
+
+        # "Rolü Düzenle" butonunu tıklayınca rolü ayarlayan işlem
+        def on_role_set():
+            selected_user = user_combobox.get()
+            selected_role = role_combobox.get()
+
+            # Kullanıcı seçimi ve rol seçim kontrolü
+            if selected_user == "Kullanıcı Seçiniz":
+                messagebox.showerror("Hata", "Lütfen bir kullanıcı seçiniz.")
+                return
+
+            if selected_role == "Yetki Seçiniz":
+                messagebox.showerror("Hata", "Lütfen bir yetki seçiniz.")
+                return
+
+            # Kullanıcı ID'sini al
+            user_id = user.User.get_user_id(selected_user)
+            if user_id is None:
+                messagebox.showerror("Hata", "Kullanıcı bulunamadı.")
+                return
+
+            # Rolü ayarla
+            a.Admin.set_role(user_id, selected_role)
+            messagebox.showinfo("Başarılı", f"{selected_user} kullanıcısının rolü başarıyla {selected_role} olarak ayarlandı.")
+
+        # Kullanıcı rolünü ayarlamak için buton
+        ttk.Button(set_role_window, text="Rolü Düzenle", command=on_role_set).pack(pady=10)
+
+
+    set_role_button = ttk.Button(admin_dashboard, text="Kullanıcı Rollerini Yönet", command=set_role_dashboard)
+    set_role_button.pack(pady=10)
+    
+    admin_dashboard.mainloop()
 def center_window(window, width, height):
     window.geometry(f'{width}x{height}+{(window.winfo_screenwidth() // 2) - (width // 2)}+{(window.winfo_screenheight() // 2) - (height // 2)}')
 
