@@ -11,6 +11,33 @@ from logger import log_action
 import user
 import datetime
 from collections import defaultdict
+import threading
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
+from file_sync import BackupAndSyncHandler
+import time
+
+
+def start_file_sync():
+    source_dir = "source"  # İzlenecek kaynak dizin
+    event_handler = BackupAndSyncHandler()
+    observer = Observer()
+    observer.schedule(event_handler, source_dir, recursive=True)
+    observer.start()
+    print("Yedekleme ve senkronizasyon başlatıldı...")
+
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        observer.stop()
+        print("Yedekleme ve senkronizasyon durduruldu.")
+    observer.join()
+
+# Yedekleme thread'ini başlat
+sync_thread = threading.Thread(target=start_file_sync, daemon=True)
+sync_thread.start()
+
 
 db_path = "app.db"
 
@@ -186,5 +213,9 @@ def log_anomalous_behavior(user_id, behavior):
     """Anormal davranışı log dosyasına kaydeder."""
     with open("anomalous_behavior.log", "a") as log_file:
         log_file.write(f"{datetime.datetime.now()} - {user_id} - {behavior}\n")
+    conn = sqlite3.connect("app.db")
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO anomalies (user_id, type, detected_at, details) VALUES(?,?,?,?)",(user_id, "Fazla Giriş Denemesi", datetime.datetime.now(), f"{user_id} id'li kullanıcı çok fazla yanlış giriş denemesinde bulundu."))
+    conn.commit()
         
 create_login_window()

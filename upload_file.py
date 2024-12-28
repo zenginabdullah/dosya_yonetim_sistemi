@@ -43,7 +43,7 @@ def upload_file(team_combobox, username):
             conn.close()
             
             messagebox.showinfo("Başarı", f"{file_name} dosyası başarıyla yüklendi.")
-            auto_backup_and_sync(file_path)
+            shutil.copy(file_path, "source")
             log_action(user_id, "Dosya Yükleme", f"{username} tarafında {selected_team_name} takımına {file_name} dosyası yüklendi.")
         except sqlite3.Error as e:
             messagebox.showerror("Veritabanı Hatası", f"Veritabanı hatası: {e}")
