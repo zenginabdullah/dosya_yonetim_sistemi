@@ -9,6 +9,8 @@ from tkinter import Label, Frame
 from PIL import Image, ImageTk
 from logger import log_action
 import user
+import datetime
+from collections import defaultdict
 
 db_path = "app.db"
 
@@ -112,6 +114,13 @@ def handle_login():
             open_admin_dashboard(username)
     else:
         messagebox.showerror("Giriş Başarısız", "Kullanıcı adı veya parola hatalı.")
+        
+        conn = sqlite3.connect("app.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
+        user_id = cursor.fetchone()[0]
+        
+        check_failed_login(user_id)
 
 def create_login_window():
     global entry_username, entry_password, root
@@ -151,5 +160,31 @@ def create_login_window():
     ttk.Button(root, text="Kayıt Ol", command=handle_register).pack(pady=5)
 
     root.mainloop()
+    
+FAILED_LOGIN_THRESHOLD = 3
+LOCK_TIME = datetime.timedelta(minutes=10)
 
+failed_logins = defaultdict(list)
+    
+def check_failed_login(user_id):
+    """Başarısız giriş denemeleri tespit edilir."""
+    current_time = datetime.datetime.now()
+    
+    failed_logins[user_id] = [t for t in failed_logins[user_id] if current_time - t < LOCK_TIME]
+
+    if len(failed_logins[user_id]) >= FAILED_LOGIN_THRESHOLD:
+        send_alert(user_id)
+
+        log_anomalous_behavior(user_id, "Cok fazla giris denemesi.")
+
+    failed_logins[user_id].append(current_time)
+
+def send_alert(user_id):
+    messagebox.showerror("Uyarı", "Kısa süre içerisinde çok fazla yanlış giriş denemesinde bulundunuz.")
+
+def log_anomalous_behavior(user_id, behavior):
+    """Anormal davranışı log dosyasına kaydeder."""
+    with open("anomalous_behavior.log", "a") as log_file:
+        log_file.write(f"{datetime.datetime.now()} - {user_id} - {behavior}\n")
+        
 create_login_window()
