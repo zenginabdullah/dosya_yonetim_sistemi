@@ -7,7 +7,6 @@ from teams import *
 from upload_file import download_file, upload_file, get_user_teams, get_team_files
 from tkinter import font
 
-
 def center_window(window, width, height):
     window.geometry(f'{width}x{height}+{(window.winfo_screenwidth() // 2) - (width // 2)}+{(window.winfo_screenheight() // 2) - (height // 2)}')
 
@@ -53,10 +52,10 @@ def open_user_dashboard(username):
             change_window.geometry("300x150")
             center_window(change_window, 300, 150)
             
-            tk.Label(change_window, text="Yeni Kullanıcı Adı:").pack(pady=5)
+            ttk.Label(change_window, text="Yeni Kullanıcı Adı:").pack(pady=5)
             entry_new_username = tk.Entry(change_window)
             entry_new_username.pack(pady=5)
-            tk.Button(change_window, text="Değiştir", command=submit_username_change).pack(pady=10)
+            ttk.Button(change_window, text="Değiştir", command=submit_username_change).pack(pady=10)
 
         # Parola değiştirme isteği
         def request_password_change(username):
@@ -74,10 +73,10 @@ def open_user_dashboard(username):
                 change_window.geometry("300x150")
                 center_window(change_window, 300, 150)
                 
-                tk.Label(change_window, text="Yeni Parola:").pack(pady=5)
+                ttk.Label(change_window, text="Yeni Parola:").pack(pady=5)
                 entry_new_password = tk.Entry(change_window)
                 entry_new_password.pack(pady=5)
-                tk.Button(change_window, text="Değiştir", 
+                ttk.Button(change_window, text="Değiştir", 
                         command=lambda: User.change_password(username, entry_new_password.get())).pack(pady=10)
             else:
                 conn = sqlite3.connect("app.db")
