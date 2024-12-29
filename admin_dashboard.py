@@ -8,9 +8,9 @@ import os
 def open_admin_dashboard(username):
     admin_dashboard = tk.Toplevel()
     admin_dashboard.title(f"Admin Paneli: {username}")
-    admin_dashboard.geometry("500x500")
+    admin_dashboard.geometry("500x600")
     admin_dashboard.configure(bg="#f2f2f2")
-    center_window(admin_dashboard, 500, 500)
+    center_window(admin_dashboard, 500, 600)
 
     ttk.Label(admin_dashboard, text="Admin Paneli", font=("Arial", 18, "bold"), background="#f2f2f2").pack(pady=20)
 
@@ -18,6 +18,7 @@ def open_admin_dashboard(username):
         conn = sqlite3.connect("app.db")
         cursor = conn.cursor()
         cursor.execute("UPDATE users SET password_change_requested = 2 WHERE username = ?", (username,))
+        cursor.execute('''INSERT INTO notifications (user_id, message) VALUES (?, ?)''', (user.User.get_user_id(username), "Şifre değiştirme talebiniz onaylandı."))
         conn.commit()
         conn.close()
         messagebox.showinfo("Onay", f"{username} kullanıcısının parola değiştirme talebi onaylandı.")
@@ -28,10 +29,17 @@ def open_admin_dashboard(username):
         cursor.execute("SELECT username FROM users WHERE password_change_requested = 1")
         users = cursor.fetchall()
         conn.close()
+        
+        password_change_window = tk.Toplevel()
+        password_change_window.title("Şifre Değiştirme Talepleri")
+        password_change_window.geometry("350x250")
+        password_change_window.configure(bg="#f2f2f2")
+        center_window(password_change_window, 350, 250)
 
         for user in users:
             username = user[0]
-            ttk.Button(admin_dashboard, text=f"{username} - Onayla", command=lambda u=username: approve_password_change(u)).pack(pady=5)
+            ttk.Button(password_change_window, text=f"{username} - Onayla", command=lambda u=username: approve_password_change(u)).pack(pady=5)
+
 
     # Şifre değiştirme taleplerini göster
     view_password_change_requests_button = ttk.Button(admin_dashboard, text="Parola Değiştirme Taleplerini Gör", command=view_password_change_requests)
@@ -147,6 +155,69 @@ def open_admin_dashboard(username):
     
     delete_user_button = ttk.Button(admin_dashboard, text = "Kullanıcı Sil", command=delete_user_dashboard)
     delete_user_button.pack(pady=10)
+    
+    def delete_file_dashboard():
+
+        delete_file_window = tk.Toplevel()
+        delete_file_window.title("Dosya Sil")
+        delete_file_window.geometry("400x200")
+        delete_file_window.configure(bg="#f2f2f2")
+        center_window(delete_file_window, 400, 200)
+
+        tk.Label(delete_file_window, text="Silmek istediğiniz dosyayı seçin:", bg="#f2f2f2", font=("Arial", 12)).pack(pady=10)
+        
+        def show_files():
+            conn = sqlite3.connect("app.db")
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT files.id, files.file_name, teams.team_name
+                FROM files
+                LEFT JOIN teams ON files.team_id = teams.id
+            """)
+            files = cursor.fetchall()
+            conn.close()
+            return files
+        
+        def update_combobox():
+            files = show_files()
+            if not files:
+                messagebox.showinfo("Bilgi", "Silinecek başka dosya kalmadı.")
+                delete_file_window.destroy()
+                return
+            file_options = [f"ID: {file[0]} - {file[1]} (Takım: {file[2]})" for file in files]
+            file_combobox['values'] = file_options  # Combobox değerlerini güncelle
+            file_combobox.set("Bir dosya seçin")    # Varsayılan değeri sıfırla
+        
+        # Combobox ile seçim için dosyaları al
+        files = show_files()
+        if not files:
+            messagebox.showerror("Hata", "Silinecek dosya bulunamadı.")
+            return
+
+        # ID ve isimleri birleştirerek kullanıcıya seçenek sun
+        file_options = [f"ID: {file[0]} - {file[1]} (Takım: {file[2]})" for file in files]
+        file_combobox = ttk.Combobox(delete_file_window, values=file_options, font=("Arial", 12), state="readonly", width=30)
+        file_combobox.pack(pady=10)
+        file_combobox.set("Bir dosya seçin")
+
+        def handle_delete():
+            selected_option = file_combobox.get()
+            if selected_option != "Bir dosya seçin":
+                # ID'yi seçilen seçenekten ayıkla
+                file_id = int(selected_option.split(" - ")[0].split(":")[1].strip())
+                a.Admin.delete_file(file_id)
+                update_combobox()
+            else:
+                messagebox.showerror("Hata", "Lütfen bir dosya seçin.")
+
+        delete_button = ttk.Button(delete_file_window, text="Sil", command=handle_delete)
+        delete_button.pack(pady=20)
+        
+        exit_button = ttk.Button(delete_file_window, text="Çıkış", command=delete_file_window.destroy)
+        exit_button.pack(pady=20)
+    
+    delete_file_button = ttk.Button(admin_dashboard, text="Dosya Sil", command=delete_file_dashboard)
+    delete_file_button.pack(pady=10)
     
     def view_encrypted_password_dashboard():
         # Yeni bir pencere oluştur
@@ -374,6 +445,8 @@ def open_admin_dashboard(username):
 
     set_role_button = ttk.Button(admin_dashboard, text="Kullanıcı Rollerini Yönet", command=set_role_dashboard)
     set_role_button.pack(pady=10)
+    
+    ttk.Button(admin_dashboard, text="Çıkış", command=admin_dashboard.quit, width=20).pack(pady=10)
     
     admin_dashboard.mainloop()
 def center_window(window, width, height):

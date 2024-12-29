@@ -83,7 +83,22 @@ class Admin:
         else:
             conn.close()
             messagebox.showerror("Hata", "Kullanıcı bulunamadı.")
-    
+            
+    def delete_file(id):
+        conn = sqlite3.connect("app.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM files WHERE id = ?", (id,))
+        file_exists = cursor.fetchone()
+        
+        if file_exists:
+            cursor.execute("DELETE FROM files WHERE id = ?", (id,))
+            conn.commit()
+            conn.close()
+            messagebox.showinfo("Dosya Silindi!", "Seçilen dosya başarıyla silindi.")
+        else:
+            conn.close()
+            messagebox.showerror("Hata", "Dosya bulunamadı.")
+        
     def view_encrypted_password(user_id):
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
