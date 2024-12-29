@@ -4,15 +4,23 @@ import sqlite3
 import admin as a
 import user
 import os
+from PIL import Image, ImageTk
+from tkinter import Label
 
 def open_admin_dashboard(username):
     admin_dashboard = tk.Toplevel()
     admin_dashboard.title(f"Admin Paneli: {username}")
-    admin_dashboard.geometry("500x600")
+    admin_dashboard.geometry("500x650")
     admin_dashboard.configure(bg="#f2f2f2")
-    center_window(admin_dashboard, 500, 600)
+    center_window(admin_dashboard, 500, 650)
 
-    ttk.Label(admin_dashboard, text="Admin Paneli", font=("Arial", 18, "bold"), background="#f2f2f2").pack(pady=20)
+    admin_resim = Image.open("photos/admin.png")
+    admin_resim = admin_resim.resize((100, 100))
+    admin_resim = ImageTk.PhotoImage(admin_resim)
+    aresim = Label(admin_dashboard,image=admin_resim)
+    aresim.place(x=10,y=10)
+    aresim.image = admin_resim
+    aresim.pack(pady=10)
 
     def approve_password_change(username):
         conn = sqlite3.connect("app.db")

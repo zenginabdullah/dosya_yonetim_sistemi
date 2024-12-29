@@ -6,6 +6,7 @@ from user import User
 from teams import *
 from upload_file import download_file, upload_file, get_user_teams, get_team_files
 from tkinter import font
+from collections import defaultdict
 
 def center_window(window, width, height):
     window.geometry(f'{width}x{height}+{(window.winfo_screenwidth() // 2) - (width // 2)}+{(window.winfo_screenheight() // 2) - (height // 2)}')
@@ -57,6 +58,34 @@ def open_user_dashboard(username):
             entry_new_username.pack(pady=5)
             ttk.Button(change_window, text="Değiştir", command=submit_username_change).pack(pady=10)
 
+        def send_alert(user_id):
+            messagebox.showerror("Uyarı", "Kısa süre içerisinde çok fazla şifre değiştirme talebinde bulundunuz.")
+
+        def log_anomalous_behavior(user_id, behavior):
+            """Anormal davranışı log dosyasına kaydeder."""
+            with open("anomalous_behavior.log", "a") as log_file:
+                log_file.write(f"{datetime.datetime.now()} - {user_id} - {behavior}\n")
+            conn = sqlite3.connect("app.db")
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO anomalies (user_id, type, detected_at, details) VALUES(?,?,?,?)",(user_id, "Fazla Şifre Değiştirme Talebi", datetime.datetime.now(), f"{user_id} id'li kullanıcı çok fazla dosya şifre değiştirme talebinde bulundu."))
+            conn.commit()
+        
+        
+        PASSWORD_CHANGE_THRESHOLD = 3
+        PASSWORD_REQUEST_WINDOW = datetime.timedelta(minutes=10)
+
+        password_requests = defaultdict(list)
+
+        def check_password_change_anomaly(user_id):
+            """Parola değiştirme talebi anomalisi tespiti."""
+            current_time = datetime.datetime.now()
+            password_requests[user_id] = [t for t in password_requests[user_id] if current_time - t < PASSWORD_REQUEST_WINDOW]
+
+            if len(password_requests[user_id]) >= PASSWORD_CHANGE_THRESHOLD:
+                send_alert(user_id)
+                log_anomalous_behavior(user_id, "Kisa surede cok fazla parola degistirme talebi.")
+
+            password_requests[user_id].append(current_time)
         # Parola değiştirme isteği
         def request_password_change(username):
             conn = sqlite3.connect("app.db")
@@ -67,6 +96,7 @@ def open_user_dashboard(username):
 
             if result and result[0] == 1:
                 messagebox.showwarning("Hata", "Zaten bir parola değiştirme talebi gönderdiniz.")
+                check_password_change_anomaly(user.User.get_user_id(username))
             elif result and result[0] == 2:
                 change_window = tk.Toplevel()
                 change_window.title("Şifre Değiştir")
@@ -85,6 +115,7 @@ def open_user_dashboard(username):
                 conn.commit()
                 conn.close()
                 messagebox.showinfo("Talep Gönderildi", "Parola değiştirme talebiniz gönderildi.")
+                check_password_change_anomaly(user.User.get_user_id(username))
 
         # Ayarlar penceresinde butonlar
         settings_button_frame = ttk.LabelFrame(settings_window, text="Kullanıcı Ayarları", padding=(10,10))
