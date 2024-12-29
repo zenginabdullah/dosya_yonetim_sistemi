@@ -40,27 +40,40 @@ def backup_file(file_path):
 def sync_file(file_path):
     """Yedekleme dizinindeki dosyayı senkronizasyon dizinine kopyalar."""
     ensure_directories()
+    file_name = os.path.basename(file_path)
+    file_base_name = os.path.splitext(file_name)[0]  # Dosya adından uzantıyı ayıkla
+    source_folder = os.path.join(BACKUP_DIR, file_base_name)
+    destination_path = os.path.join(SYNC_DIR, file_name)
+
+    # Kaynak dizin kontrolü
+    print(f"Kaynak klasör kontrol ediliyor: {source_folder}")
+    if not os.path.exists(source_folder):
+        print(f"Hata: Yedekleme dizini bulunamadı: {source_folder}")
+        return
+
     try:
-        file_name = os.path.basename(file_path)
-        file_base_name = os.path.splitext(file_name)[0]  # Dosya adından uzantıyı ayıkla
-        source_folder = os.path.join(BACKUP_DIR, file_base_name)
-        destination_path = os.path.join(SYNC_DIR, file_name)
-
+        # Kaynak klasördeki dosyaları listele
         files_in_folder = sorted(os.listdir(source_folder), reverse=True)
-        if files_in_folder:
-            latest_file = files_in_folder[0]
-            source_path = os.path.join(source_folder, latest_file)
-            
-            # Senkronizasyon dizininde eski dosyayı sil
-            if os.path.exists(destination_path):
-                os.remove(destination_path)
-                print(f"Senkronizasyondan kaldırıldı: {file_name}")
+        print(f"Kaynak klasördeki dosyalar: {files_in_folder}")
 
-            # En son yedeklemeyi senkronize et
-            shutil.copy(source_path, destination_path)
-            print(f"Senkronize edildi: {file_name}")
-        else:
+        if not files_in_folder:
             print(f"Yedekleme dosyası bulunamadı: {file_name}")
+            return
+
+        # En yeni dosyayı seç
+        latest_file = files_in_folder[0]
+        source_path = os.path.join(source_folder, latest_file)
+        print(f"En yeni dosya: {source_path}")
+
+        # Eski senkron dosyasını sil
+        if os.path.exists(destination_path):
+            os.remove(destination_path)
+            print(f"Senkronizasyondan kaldırıldı: {file_name}")
+
+        # Yeni dosyayı kopyala
+        shutil.copy(source_path, destination_path)
+        print(f"Senkronize edildi: {file_name}, Hedef: {destination_path}")
+
     except Exception as e:
         print(f"Senkronizasyon sırasında hata oluştu: {e}")
 

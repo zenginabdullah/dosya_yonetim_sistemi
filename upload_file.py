@@ -40,14 +40,29 @@ def upload_file(team_combobox, username):
             ''', (user_id, file_name, file_path, selected_team_id))
 
             conn.commit()
-            conn.close()
             
             messagebox.showinfo("Başarı", f"{file_name} dosyası başarıyla yüklendi.")
             shutil.copy(file_path, "source")
             log_action(user_id, "Dosya Yükleme", f"{username} tarafında {selected_team_name} takımına {file_name} dosyası yüklendi.")
+            notification_team_members(file_name, selected_team_id)
+            
         except sqlite3.Error as e:
             messagebox.showerror("Veritabanı Hatası", f"Veritabanı hatası: {e}")
 
+def notification_team_members(file_name, team_id):
+
+    conn = sqlite3.connect("app.db")
+    cursor = conn.cursor()
+        
+    cursor.execute('''SELECT user_id FROM team_members WHERE team_id = ?''', (team_id,))
+    team_members = cursor.fetchall()
+
+    for member in team_members:
+        user_id = member[0]
+        cursor.execute('''INSERT INTO notifications (user_id, message) VALUES (?, ?)''', (user_id, f"Yeni bir dosya paylaşıldı: {file_name}"))
+    conn.commit()
+    conn.close()
+    
 def share_file_with_team(file_id, team_id):
 
     try:

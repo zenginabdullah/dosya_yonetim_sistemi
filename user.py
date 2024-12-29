@@ -41,14 +41,15 @@ class User:
         cursor = conn.cursor()
         hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
         cursor.execute("UPDATE users SET password = ? WHERE username = ?", (hashed_password, username))
+        cursor.execute("UPDATE users SET password_change_requested = 0 WHERE username = ?", (username,))
         conn.commit()
         conn.close()
-        messagebox.showinfo("Parolanız başarıyla değiştirildi.")
+        messagebox.showinfo("Parolanız Değiştirildi!", "Parolanız başarıyla değiştirildi.")
         
     def get_user_id(username):
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
         user_id = cursor.fetchone()[0]
-        
+        conn.close()
         return user_id
