@@ -13,9 +13,6 @@ class User:
         self.role = role
         self.team_members = []
         self.shared_files = []
-
-    def register(self, username, password):
-        pass
     
     def change_username(username, new_username):
         try:

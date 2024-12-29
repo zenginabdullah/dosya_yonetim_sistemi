@@ -8,6 +8,7 @@ from PIL import ImageTk, Image
 from logger import log_action
 import user
 from file_sync import *
+from collections import defaultdict
 
 global logged_user
 
@@ -164,6 +165,35 @@ def ask_custom_action():
 
     return result["choice"]
 
+def send_alert(user_id):
+    messagebox.showerror("Uyarı", "Kısa süre içerisinde çok fazla dosya indirme talebinde bulundunuz.")
+
+def log_anomalous_behavior(user_id, behavior):
+    """Anormal davranışı log dosyasına kaydeder."""
+    with open("anomalous_behavior.log", "a") as log_file:
+        log_file.write(f"{datetime.datetime.now()} - {user_id} - {behavior}\n")
+    conn = sqlite3.connect("app.db")
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO anomalies (user_id, type, detected_at, details) VALUES(?,?,?,?)",(user_id, "Fazla Dosya İndirme", datetime.datetime.now(), f"{user_id} id'li kullanıcı kısa süre içinde çok fazla dosya indirme denemesinde bulundu."))
+    conn.commit()
+
+FILE_ACTION_THRESHOLD = 10
+ACTION_WINDOW = datetime.timedelta(minutes=5)
+
+file_actions = defaultdict(list)
+
+def check_file_anomaly(user_id, action_type):
+    """Dosya indirme/yükleme anomalisi tespiti."""
+    current_time = datetime.datetime.now()
+    file_actions[user_id] = [t for t in file_actions[user_id] if current_time - t < ACTION_WINDOW]
+
+    if len(file_actions[user_id]) >= FILE_ACTION_THRESHOLD:
+        send_alert(user_id)
+        log_anomalous_behavior(user_id, f"Olagandisi {action_type} sayisi tespit edildi.")
+    
+    file_actions[user_id].append(current_time)
+
+
 def download_file(file_path, username):
 
     try:
@@ -178,6 +208,7 @@ def download_file(file_path, username):
                 messagebox.showinfo("Başarı", "Dosya başarıyla indirildi.")
                 
                 user_id = user.User.get_user_id(username)
+                check_file_anomaly(user_id, "dosya indirme")
                 log_action(user_id, "Dosya İndirme", f"{username} kullanıcısı {file_path} dosyasını indirdi.")
         else:
             messagebox.showinfo("İptal", "Hiçbir işlem yapılmadı.")
